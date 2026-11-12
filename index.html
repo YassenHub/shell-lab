@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b1f4a">
+  <title>CMD Lab | CMD &amp; PowerShell Simulator</title>
+  <meta name="description" content="Learn Windows commands safely: a CMD and PowerShell simulator that runs fake commands, with an AI mode that explains any command in detail.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23000'/%3E%3Ctext x='32' y='44' font-family='monospace' font-size='34' font-weight='900' text-anchor='middle' fill='%2360cdff'%3E%3E_%3C/text%3E%3C/svg%3E">
+  <style>
+    :root { --acc:#60cdff; --glass:rgba(28,30,44,.78); --line:rgba(255,255,255,.16); --warn:#ffb454;
+      --mono:ui-monospace,"Cascadia Mono",Consolas,monospace; }
+    * { box-sizing:border-box; }
+    [hidden] { display:none !important; }
+    body { margin:0; min-height:100vh; display:flex; flex-direction:column; color:#fff;
+      font:15px/1.55 "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+      background:radial-gradient(1100px 700px at 15% 5%,#3b82f6 0,transparent 60%),radial-gradient(900px 650px at 95% 85%,#8b5cf6 0,transparent 58%),radial-gradient(700px 500px at 60% 100%,#06b6d4 0,transparent 60%),#0b1f4a; background-attachment:fixed; }
+    :focus-visible { outline:2px solid var(--acc); outline-offset:3px; border-radius:6px; }
+    .skip { position:absolute; left:12px; top:-60px; z-index:30; padding:8px 14px; background:#fff; color:#000; border-radius:8px; font-weight:700; text-decoration:none; }
+    .skip:focus { top:10px; }
+    .desk { flex:1; display:grid; grid-template-columns:104px minmax(0,1fr); gap:22px; padding:22px 22px 28px; align-items:start; }
+    .icons { display:flex; flex-direction:column; gap:14px; }
+    .ico { display:flex; flex-direction:column; align-items:center; gap:6px; padding:8px 4px; border:1px solid transparent; border-radius:8px; background:transparent; color:#fff; font:600 13px/1.2 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif; text-shadow:0 1px 4px rgba(0,0,0,.6); cursor:pointer; }
+    .ico:hover { background:rgba(255,255,255,.14); border-color:var(--line); }
+    .tile { width:52px; height:52px; display:grid; place-items:center; border-radius:12px; font:800 19px var(--mono); box-shadow:0 8px 20px rgba(0,0,0,.35); }
+    .t-cmd { background:#0c0c0c; color:#e6e6e6; } .t-ps { background:#012456; color:#ffe66d; }
+    .hero h1 { margin:34px 0 6px; font-weight:300; font-size:clamp(46px,9vw,96px); line-height:1; letter-spacing:-.03em; text-shadow:0 4px 30px rgba(0,0,0,.35); }
+    .hero h1 b { font-weight:700; color:var(--acc); }
+    .hero p { max-width:560px; margin:0; font-size:17px; color:rgba(255,255,255,.86); }
+    #lab:not([hidden]) + .hero { display:none; }
+    .win { max-width:920px; margin:0 auto; border-radius:10px; overflow:hidden; border:1px solid var(--line); box-shadow:0 30px 80px rgba(0,0,0,.55); }
+    .tb { display:flex; align-items:center; gap:10px; padding:0 0 0 12px; height:40px; background:var(--glass); backdrop-filter:blur(18px); font-size:13px; }
+    .tb select { background:rgba(255,255,255,.1); color:#fff; border:1px solid var(--line); border-radius:6px; padding:3px 8px; font:inherit; }
+    .tb select option { color:#000; }
+    #badge { padding:2px 10px; border-radius:99px; background:var(--acc); color:#001; font-weight:700; font-size:12px; }
+    .ctl { margin-inline-start:auto; display:flex; height:100%; direction:ltr; }
+    .ctl button { width:46px; border:0; background:transparent; color:#fff; font:16px system-ui; cursor:pointer; }
+    .ctl button:hover { background:rgba(255,255,255,.12); } .ctl #close:hover { background:#c42b1c; }
+    .term.cmd { background:#0c0c0c; color:#ccc; } .term.ps { background:#012456; color:#eee; }
+    #out { height:min(56vh,500px); overflow-y:auto; padding:12px 16px 4px; font:14px/1.5 var(--mono); }
+    #out .ln { white-space:pre-wrap; overflow-wrap:anywhere; direction:ltr; text-align:left; min-height:1.5em; }
+    #out .err { color:#ff6b6b; } #out .dim { color:#9aa0c8; }
+    #out .ar { font:14.5px/1.75 "Segoe UI",system-ui,sans-serif; direction:rtl; text-align:right; margin:2px 0; color:#d9ecff; }
+    #out .h { color:var(--acc); font-weight:700; margin-top:14px; direction:rtl; text-align:right; font-family:"Segoe UI",system-ui,sans-serif; }
+    #out .nm { color:#8bffc4; font-size:20px; font-weight:800; }
+    #out .syn { color:#8bffc4; background:rgba(255,255,255,.08); padding:6px 12px; border-radius:8px; margin:4px 0; }
+    #out .opt { display:grid; grid-template-columns:minmax(90px,220px) 1fr; gap:4px 16px; padding:4px 0; border-bottom:1px dashed rgba(255,255,255,.18); }
+    #out .opt code { color:#8bffc4; direction:ltr; text-align:left; overflow-wrap:anywhere; }
+    #out .opt span { direction:rtl; text-align:right; font-family:"Segoe UI",system-ui,sans-serif; }
+    #out .wn { color:var(--warn); border-inline-start:3px solid var(--warn); padding:2px 12px; margin:10px 0 4px; direction:rtl; text-align:right; font-family:"Segoe UI",system-ui,sans-serif; }
+    .in { display:flex; gap:8px; padding:4px 16px 14px; font:14px var(--mono); }
+    #prompt { white-space:nowrap; } .ps #prompt { color:#ffe66d; }
+    #cmd { flex:1; min-width:0; background:transparent; border:0; color:#fff; font:inherit; caret-color:#fff; }
+    #cmd:focus { outline:none; }
+    .chips { max-width:920px; margin:14px auto 0; display:flex; flex-wrap:wrap; gap:8px; }
+    .chips button { font:600 13px var(--mono); padding:6px 12px; border:1px solid var(--line); border-radius:99px; background:var(--glass); color:#fff; cursor:pointer; }
+    .chips button:hover { border-color:var(--acc); color:var(--acc); }
+    .bar { position:sticky; bottom:0; z-index:10; display:flex; align-items:center; justify-content:space-between; gap:10px; height:52px; padding:0 14px; background:var(--glass); backdrop-filter:blur(22px); border-top:1px solid var(--line); }
+    .apps { display:flex; align-items:center; gap:6px; margin-inline:auto; }
+    .app { display:flex; align-items:center; gap:8px; height:38px; padding:0 12px; border-radius:8px; color:#fff; text-decoration:none; font-size:13px; font-weight:600; }
+    .app:hover { background:rgba(255,255,255,.14); }
+    .app i { width:24px; height:24px; display:grid; place-items:center; border-radius:6px; font:800 11px var(--mono); font-style:normal; color:#fff; }
+    .app svg { width:20px; height:20px; fill:var(--acc); }
+    #ai { display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 12px; border:1px solid var(--line); border-radius:99px; background:transparent; color:#fff; font:700 13px "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif; cursor:pointer; }
+    #ai svg { width:17px; height:17px; fill:currentColor; }
+    #ai:hover { border-color:var(--acc); }
+    #ai[aria-pressed="true"] { background:var(--acc); border-color:var(--acc); color:#001; box-shadow:0 0 0 4px rgba(96,205,255,.25); }
+    #clk { font-size:12px; text-align:end; line-height:1.2; min-width:62px; }
+    @media (max-width:760px) {
+      .desk { grid-template-columns:1fr; padding:16px 12px 20px; }
+      .icons { flex-direction:row; }
+      .app span { display:none; } .app { padding:0 8px; }
+      #out .opt { grid-template-columns:1fr; } #clk { display:none; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#cmd">Skip to terminal</a>
+  <main class="desk">
+    <nav class="icons" id="picker" aria-label="Open a terminal">
+      <button class="ico" type="button" data-sh="cmd"><span class="tile t-cmd" aria-hidden="true">&gt;_</span>Command Prompt</button>
+      <button class="ico" type="button" data-sh="ps"><span class="tile t-ps" aria-hidden="true">PS</span>PowerShell</button>
+    </nav>
+
+    <section id="lab" hidden aria-label="Terminal window">
+      <div class="win">
+        <div class="tb">
+          <span aria-hidden="true">&gt;_</span>
+          <select id="shsel" aria-label="Switch shell"><option value="cmd">Command Prompt</option><option value="ps">PowerShell</option></select>
+          <span id="badge" hidden>AI: explain mode</span>
+          <div class="ctl"><button type="button" aria-hidden="true" tabindex="-1">&#8211;</button><button type="button" aria-hidden="true" tabindex="-1">&#9633;</button><button type="button" id="close" aria-label="Close window" onclick="show(false)">&#10005;</button></div>
+        </div>
+        <div id="term" class="term cmd">
+          <div id="out" role="log" aria-live="polite" aria-label="Terminal output"></div>
+          <div class="in"><span id="prompt"></span><input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Type a command"></div>
+        </div>
+      </div>
+      <div class="chips" id="chips" aria-label="Quick commands"></div>
+    </section>
+
+    <div class="hero">
+      <h1>CMD <b>Lab</b></h1>
+      <p dir="rtl">افتح CMD أو PowerShell من سطح المكتب، واكتب الأوامر وشاهدها تعمل أمامك. كل شيء وهمي للتعلم فقط ولا يؤثر على جهازك. فعّل أيقونة AI من الشريط السفلي ليشرح لك كل أمر بالتفصيل بدل تنفيذه.</p>
+    </div>
+  </main>
+
+  <footer class="bar">
+    <a class="app" href="https://yassen2012ya.github.io/LinkHub.github.io/" rel="noopener noreferrer" title="LinkHub" aria-label="LinkHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8.5v8.5H3zM12.5 3H21v8.5h-8.5zM3 12.5h8.5V21H3zM12.5 12.5H21V21h-8.5z"/></svg></a>
+    <nav class="apps" aria-label="My pages">
+      <a class="app" href="https://yassen2012ya.github.io/LinkHub.github.io/" rel="noopener noreferrer"><i style="background:#3b82f6">L</i><span>LinkHub</span></a>
+      <a class="app" href="https://yassen2012ya.github.io/CMD-Learner/" rel="noopener noreferrer"><i style="background:#16a34a">&gt;_</i><span>CMD Guide</span></a>
+      <a class="app" href="https://github.com/yassen2012ya" target="_blank" rel="noopener noreferrer"><i style="background:#24292f">GH</i><span>GitHub</span></a>
+    </nav>
+    <div style="display:flex;align-items:center;gap:12px">
+      <button id="ai" type="button" aria-pressed="false" title="AI mode: explain commands instead of running them"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z"/></svg>AI</button>
+      <time id="clk"></time>
+    </div>
+  </footer>
+
+  <script>
+    // [name, short, details, syntax, options 'opt ~ desc', examples 'cmd ~ desc', warning]
+    const DB = [
+      ['dir','عرض محتويات المجلد','يعرض الملفات والمجلدات الموجودة في المكان الحالي مع تاريخ التعديل والحجم، وفي النهاية عدد العناصر والمساحة الفارغة على القرص.','dir [path] [options]',
+        ['/a ~ يعرض الملفات المخفية والنظامية أيضًا','/s ~ يبحث داخل المجلدات الفرعية كلها','/b ~ أسماء فقط بدون تفاصيل','/o:n ~ ترتيب بالاسم (/o:d بالتاريخ، /o:s بالحجم)','/p ~ يعرض صفحة صفحة'],
+        ['dir /a ~ كل ما في المجلد بما فيه المخفي','dir C:\\Windows *.exe /s /b ~ كل ملفات exe داخل ويندوز'],''],
+      ['cd','الانتقال بين المجلدات','يغيّر المجلد الحالي الذي تعمل فيه. بدون مسار يعرض لك المجلد الحالي.','cd [/d] [path]',
+        ['/d ~ ينتقل أيضًا إلى قرص آخر، مثل D:','.. ~ المجلد الأعلى بدرجة واحدة','\\ ~ الجذر الرئيسي للقرص'],['cd /d D:\\Games ~ الذهاب لمجلد على قرص D','cd .. ~ الرجوع خطوة للخلف'],''],
+      ['mkdir','إنشاء مجلد','ينشئ مجلدًا جديدًا، ويمكنه إنشاء عدة مستويات دفعة واحدة. الاختصار md.','mkdir <path>',[],['mkdir C:\\lab ~ مجلد جديد باسم lab','mkdir C:\\a\\b\\c ~ ينشئ a ثم b ثم c'],''],
+      ['copy','نسخ ملف','ينسخ ملفًا أو أكثر إلى مكان آخر. لنسخ مجلد كامل استخدم robocopy أو xcopy.','copy <source> <destination>',['/y ~ يستبدل بدون سؤال','/v ~ يتحقق من صحة النسخة'],['copy a.txt D:\\ ~ ينسخ الملف إلى القرص D'],'إن وُجد ملف بنفس الاسم قد يُستبدل.'],
+      ['del','حذف ملفات','يحذف ملفًا أو أكثر نهائيًا، ولا يذهب إلى سلة المحذوفات.','del [options] <file>',['/q ~ بدون سؤال تأكيد','/f ~ يحذف حتى الملفات للقراءة فقط','/s ~ يحذف من المجلدات الفرعية أيضًا'],['del /q a.txt ~ حذف ملف'],'لا يمكن التراجع بسهولة، وتأكد من المسار قبل Enter.'],
+      ['net user','إدارة حسابات المستخدمين','يعرض مستخدمي الجهاز، وينشئ حسابات ويعدّلها ويحذفها ويغيّر كلمات مرورها. يحتاج CMD بصلاحية Administrator.','net user [name] [password | *] [options]',
+        ['بدون خيارات ~ عرض كل المستخدمين','/add ~ إنشاء مستخدم','/delete ~ حذف مستخدم','/active:yes|no ~ تفعيل الحساب أو تعطيله','/passwordchg:no ~ منع المستخدم من تغيير كلمته','* ~ يطلب كلمة المرور وهي مخفية'],
+        ['net user Ali * /add ~ إنشاء مستخدم وطلب كلمته بأمان','net user Ali ~ تفاصيل المستخدم'],'لا تكتب كلمة المرور داخل الأمر، فتبقى ظاهرة في سجل الطرفية. استخدم *.'],
+      ['net localgroup','إدارة مجموعات المستخدمين','يعرض مجموعات الجهاز مثل Administrators وUsers، ويضيف المستخدمين إليها أو يزيلهم، وهي التي تحدد صلاحياتهم.','net localgroup [group] [user] [/add | /del]',
+        ['/add ~ إضافة المستخدم للمجموعة','/del ~ إزالته منها'],['net localgroup administrators Ali /add ~ يجعل Ali مديرًا','net localgroup administrators Ali /del ~ يسحب صلاحية المدير'],'لا تعطِ صلاحية Administrator إلا للضرورة.'],
+      ['whoami','المستخدم الحالي','يعرض اسم المستخدم الذي تعمل به الآن. مفيد جدًا لتعرف هل فتحت CMD كمدير.','whoami [/groups | /priv]',['/groups ~ المجموعات التي ينتمي لها','/priv ~ الامتيازات الممنوحة له'],['whoami /groups ~ مجموعات المستخدم'],''],
+      ['icacls','التحكم بصلاحيات الملفات','يعرض صلاحيات الملفات والمجلدات (من يقرأ ومن يكتب) ويعدّلها. رموز الصلاحيات: F تحكم كامل، M تعديل، R قراءة فقط.','icacls <path> [/grant | /deny | /inheritance] ...',
+        ['/grant user:(F) ~ يمنح صلاحية','/deny user:(F) ~ يمنع صلاحية','/inheritance:r ~ يزيل الصلاحيات الموروثة من المجلد الأب','/T ~ يطبّق على كل ما بالداخل'],
+        ['icacls C:\\lab ~ عرض الصلاحيات','icacls C:\\lab /grant Ali:(F) ~ تحكم كامل لـ Ali'],'/inheritance:r قد يقفل المجلد على الجميع، و/deny يتغلب على /grant.'],
+      ['takeown','أخذ ملكية ملف','يجعلك مالك الملف أو المجلد، وهي خطوة تسبق تعديل صلاحيات لا تملكها.','takeown /f <path> [/r]',['/f ~ المسار','/r ~ يشمل كل ما بالداخل'],['takeown /f C:\\lab /r ~ ملكية المجلد وما فيه'],'يحتاج صلاحية مدير. لا تغيّر ملكية ملفات ويندوز.'],
+      ['sfc','فحص ملفات النظام','System File Checker: يفحص ملفات ويندوز المحمية ويستبدل التالف منها بنسخة سليمة مخزنة.','sfc /scannow',['/scannow ~ فحص وإصلاح كامل (يستغرق دقائق)','/verifyonly ~ فحص بدون إصلاح'],['sfc /scannow ~ فحص كل الملفات'],'شغّل DISM RestoreHealth قبله، لأن sfc يعتمد على صورة سليمة.'],
+      ['dism','إصلاح وإدارة صورة ويندوز','Deployment Image Servicing: يفحص صورة ويندوز ويصلحها ويديرها (ملفات wim وiso)، وهو أقوى من sfc.','DISM /Online /Cleanup-Image /<option>',
+        ['/CheckHealth ~ فحص سريع، هل التلف مسجّل','/ScanHealth ~ فحص أعمق بدون إصلاح','/RestoreHealth ~ إصلاح من Windows Update','/Get-WimInfo ~ عرض الإصدارات داخل ملف install.wim','/Online ~ على النظام الشغال حاليًا'],
+        ['DISM /Online /Cleanup-Image /RestoreHealth ~ الإصلاح الكامل','DISM /Get-WimInfo /WimFile:D:\\sources\\install.wim ~ إصدارات ويندوز بالفلاشة'],'يحتاج إنترنت وصلاحية مدير، وقد يبدو متوقفًا عند 20% أو 62% وهذا طبيعي.'],
+      ['chkdsk','فحص القرص','يفحص القرص بحثًا عن أخطاء في نظام الملفات والقطاعات التالفة ويحاول إصلاحها.','chkdsk <drive> [/f] [/r]',['/f ~ يصلح أخطاء الملفات','/r ~ يبحث عن قطاعات تالفة ويستعيد بياناتها (أبطأ)','/x ~ يفصل القرص أولًا'],['chkdsk C: /f /r ~ فحص كامل'],'على قرص النظام يُجدول للتشغيل التالي، وقد يأخذ وقتًا طويلًا.'],
+      ['diskpart','إدارة الأقراص والأقسام','أداة لها واجهة أوامر خاصة: بعد كتابتها تظهر DISKPART> وتكتب بداخلها أوامر الأقراص. تحتاج مدير.','diskpart',
+        ['list disk ~ عرض الأقراص','select disk <n> ~ اختيار قرص','list volume ~ عرض الأقسام','clean ~ مسح كل أقسام القرص المختار','convert gpt|mbr ~ تغيير نوع الجدول','create partition primary ~ إنشاء قسم','format fs=ntfs quick ~ تهيئة القسم','assign letter=E ~ إعطاؤه حرفًا','exit ~ الخروج'],
+        ['list disk ~ الخطوة 1: اعرف رقم القرص','select disk 1 ~ الخطوة 2: اختره بعد التأكد من رقمه','clean ~ الخطوة 3: مسح القرص','create partition primary ~ الخطوة 4: قسم جديد','format fs=ntfs quick ~ الخطوة 5: تهيئته'],'clean وformat يمسحان كل شيء على القرص. تأكد من رقم القرص من list disk قبل select disk.'],
+      ['bcdedit','تعديل إعدادات الإقلاع','يعرض ويعدّل بيانات الإقلاع (BCD) التي تحدد أي نظام يبدأ وكيف تظهر قائمة الإقلاع.','bcdedit [/enum | /set | /export | /import] ...',
+        ['/enum ~ عرض الإعدادات','/export <file> ~ نسخة احتياطية','/import <file> ~ استرجاعها','/timeout n ~ مدة ظهور القائمة بالثواني','/set {current} description "name" ~ تغيير الاسم','/set {current} safeboot minimal ~ إقلاع آمن','/deletevalue {current} safeboot ~ إلغاء الإقلاع الآمن'],
+        ['bcdedit /export C:\\bcd_backup ~ احتياطي قبل أي تعديل','bcdedit /timeout 10 ~ 10 ثوانٍ للقائمة'],'تعديل خاطئ قد يمنع ويندوز من الإقلاع. اعمل /export أولًا.'],
+      ['bcdboot','إنشاء ملفات الإقلاع','ينسخ ملفات الإقلاع من مجلد ويندوز إلى قسم الإقلاع (EFI أو System) وينشئ BCD جديدًا. يُستخدم بعد تثبيت ويندوز بيدك أو عند إصلاح الإقلاع.','bcdboot <windows_dir> [/s <drive>] [/f UEFI|BIOS|ALL]',['/s ~ قسم الإقلاع الذي تُكتب عليه','/f UEFI ~ لأجهزة UEFI','/f BIOS ~ لأجهزة BIOS/MBR','/l ~ لغة الإقلاع'],['bcdboot C:\\Windows /s S: /f UEFI ~ إصلاح إقلاع UEFI'],'اختر حرف قسم EFI الصحيح من diskpart (list volume).'],
+      ['bootrec','إصلاح الإقلاع (WinRE)','أداة تعمل من بيئة الاسترداد لإصلاح سجل الإقلاع (MBR) وقطاع الإقلاع وإعادة بناء BCD.','bootrec /fixmbr | /fixboot | /rebuildbcd',['/fixmbr ~ كتابة MBR جديد','/fixboot ~ كتابة قطاع إقلاع جديد','/rebuildbcd ~ يبحث عن أنظمة ويعيد بناء BCD'],['bootrec /rebuildbcd ~ إعادة بناء بيانات الإقلاع'],'تعمل من Command Prompt في Advanced Startup.'],
+      ['ipconfig','إعدادات الشبكة','يعرض عنوان IP وقناع الشبكة والبوابة وخوادم DNS، ويجدد العناوين.','ipconfig [/all | /release | /renew | /flushdns]',['/all ~ كل التفاصيل مع MAC وDNS','/release ~ تحرير عنوان IP','/renew ~ طلب عنوان جديد','/flushdns ~ مسح ذاكرة DNS'],['ipconfig /flushdns ~ يحل مشاكل فتح بعض المواقع'],''],
+      ['ping','اختبار الاتصال','يرسل حزمًا صغيرة إلى جهاز أو موقع ويقيس زمن الرد وفقد الحزم، ليتأكد أن الاتصال يعمل.','ping <host> [-t] [-n count]',['-t ~ يستمر حتى تضغط Ctrl+C','-n 10 ~ عدد المحاولات','-l size ~ حجم الحزمة'],['ping 8.8.8.8 ~ اختبار الإنترنت','ping google.com ~ اختبار DNS والإنترنت'],''],
+      ['tracert','تتبع المسار','يعرض كل الأجهزة (المحطات) التي تمر بها الحزمة حتى تصل لوجهتها مع زمن كل محطة، لتعرف أين يحدث التأخير.','tracert <host>',['-d ~ بدون تحويل العناوين لأسماء (أسرع)','-h n ~ أقصى عدد محطات'],['tracert google.com ~ مسار الاتصال'],''],
+      ['nslookup','استعلام DNS','يسأل خادم DNS عن عنوان IP الخاص باسم موقع، أو العكس.','nslookup <name> [server]',['-type=mx ~ نوع السجل المطلوب'],['nslookup google.com ~ عنوان IP للموقع'],''],
+      ['netstat','الاتصالات والمنافذ','يعرض الاتصالات الشبكية المفتوحة والمنافذ التي يستمع لها جهازك.','netstat [-a] [-n] [-o]',['-a ~ كل الاتصالات والمنافذ','-n ~ أرقام بدل الأسماء','-o ~ يظهر رقم العملية PID'],['netstat -ano ~ ثم tasklist /FI "PID eq 1234" لمعرفة البرنامج'],''],
+      ['tasklist','عرض العمليات','يعرض البرامج والعمليات التي تعمل مع رقم كل عملية PID واستهلاكها للذاكرة.','tasklist [/FI filter]',['/FI ~ تصفية، مثل "PID eq 1234"','/SVC ~ الخدمات داخل كل عملية'],['tasklist /FI "IMAGENAME eq chrome.exe" ~ عمليات كروم فقط'],''],
+      ['taskkill','إنهاء عملية','يغلق برنامجًا أو عملية بالاسم أو برقم PID.','taskkill /IM <name> | /PID <id> [/F]',['/IM ~ باسم الملف التنفيذي','/PID ~ برقم العملية','/F ~ إجبار الإغلاق','/T ~ مع العمليات التابعة'],['taskkill /IM notepad.exe /F ~ إغلاق المفكرة بالقوة'],'قد تفقد عملًا غير محفوظ، ولا تغلق عمليات النظام.'],
+      ['shutdown','إغلاق أو إعادة التشغيل','يغلق الجهاز أو يعيد تشغيله أو يسجّل الخروج، فورًا أو بعد مهلة.','shutdown /s | /r | /l | /a [/t seconds]',['/s ~ إغلاق','/r ~ إعادة تشغيل','/l ~ تسجيل خروج','/a ~ إلغاء عملية مجدولة','/t n ~ مهلة بالثواني (0 فورًا)'],['shutdown /s /t 60 ~ إغلاق بعد دقيقة','shutdown /a ~ إلغاؤه'],'/t 0 ينفّذ فورًا بدون سؤال.'],
+      ['gpupdate','تحديث السياسات','يطبّق سياسات المجموعة (Group Policy) فورًا دون انتظار التحديث الدوري.','gpupdate [/force]',['/force ~ يعيد تطبيق كل السياسات'],['gpupdate /force ~ تطبيق فوري'],''],
+      ['systeminfo','معلومات الجهاز','يعرض إصدار ويندوز، والمعالج، والذاكرة، وتاريخ التثبيت، والتحديثات، وإعدادات الشبكة.','systeminfo',[],['systeminfo ~ تقرير كامل عن جهازك'],''],
+      ['reg','التحكم بالريجستري','يقرأ ويضيف ويعدّل ويحذف ويصدّر مفاتيح الريجستري، وهي قاعدة إعدادات ويندوز.','reg <query | add | delete | export | import> <key> ...',['query ~ قراءة مفتاح','add ~ إضافة أو تعديل قيمة','export ~ نسخة احتياطية','/v ~ اسم القيمة','/t ~ نوعها مثل REG_DWORD','/d ~ بياناتها','/f ~ بدون سؤال'],['reg export HKLM\\SOFTWARE C:\\backup.reg ~ احتياطي','reg query "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion" ~ قراءة'],'تعديل خاطئ قد يخرّب ويندوز. اعمل export قبل أي تعديل.'],
+      ['cls','مسح الشاشة','يمسح كل ما كُتب في نافذة الطرفية.','cls',[],['cls ~ تنظيف الشاشة'],''],
+      ['help','قائمة الأوامر','يعرض قائمة الأوامر المتاحة. في هذا المحاكي يعرض كل الأوامر التي أشرحها لك.','help',[],[],'']
+    ];
+
+    const $ = id => document.getElementById(id);
+    const out = $('out'), inp = $('cmd'), pr = $('prompt'), term = $('term');
+    const KEYS = DB.map(r => r[0]).sort((a, b) => b.length - a.length), MAP = new Map(DB.map(r => [r[0], r]));
+    let shell = 'cmd', ai = false, busy = false, dp = null, sel = null;
+    const users = ['Administrator', 'DefaultAccount', 'Guest', 'User'];
+    const hist = []; let hi = 0;
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const add = (cls, t) => { const d = document.createElement('div'); d.className = cls; d.textContent = t === '' ? ' ' : t; out.appendChild(d); out.scrollTop = out.scrollHeight; return d; };
+    const ln = (t, c) => add('ln' + (c ? ' ' + c : ''), t);
+    async function say(text, d = 0) { for (const l of text.split('\n')) { ln(l); if (d) await sleep(d); } }
+
+    // ---- fake file system ----
+    const FS = { 'C:': { Users: { User: { Desktop: {}, Documents: { 'notes.txt': 'Hello from CMD Lab!' }, Downloads: {} } }, Windows: { System32: {} }, 'Program Files': {} } };
+    let cwd = ['C:', 'Users', 'User'];
+    const find = (n, k) => Object.keys(n).find(x => x.toLowerCase() === k.toLowerCase());
+    const get = p => p.reduce((n, k) => { if (!n || typeof n !== 'object') return; const m = find(n, k); return m === undefined ? undefined : n[m]; }, FS);
+    const pstr = p => p.length < 2 ? p[0] + '\\' : p.join('\\');
+    function resolve(s) {
+      s = s.replace(/^"|"$/g, ''); const abs = /^[a-z]:/i.test(s); const p = abs ? [] : [...cwd];
+      s.split(/[\\/]/).filter(Boolean).forEach(x => { if (x === '..') { if (p.length > 1) p.pop(); } else if (x !== '.') p.push(x); });
+      if (abs) p[0] = p[0].toUpperCase(); return p;
+    }
+    function mk(p) { let n = FS; p.forEach(k => { const m = find(n, k); if (m === undefined) { n[k] = {}; n = n[k]; } else n = n[m]; }); }
+    const stamp = () => { const d = new Date(), z = x => String(x).padStart(2, '0'); return z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' + d.getFullYear() + '  ' + z(d.getHours()) + ':' + z(d.getMinutes()); };
+    const promptText = () => dp ? 'DISKPART> ' : shell === 'ps' ? 'PS ' + pstr(cwd) + '> ' : pstr(cwd) + '>';
+    const upd = () => { pr.textContent = promptText(); };
+
+    // ---- messages ----
+    const NR = n => shell === 'ps'
+      ? [n + " : The term '" + n + "' is not recognized as the name of a cmdlet, function, script file, or operable program.", 'Check the spelling of the name, or if a path was included, verify that the path is correct and try again.']
+      : ["'" + n + "' is not recognized as an internal or external command,", 'operable program or batch file.'];
+    const nr = n => NR(n).forEach(l => ln(l, 'err'));
+    const bad = (cmdMsg, psMsg) => ln(shell === 'ps' ? psMsg : cmdMsg, 'err');
+    const ALIAS = { ls: 'dir', gci: 'dir', 'get-childitem': 'dir', sl: 'cd', 'set-location': 'cd', pwd: 'cd', 'get-location': 'cd', md: 'mkdir', cat: 'type', gc: 'type', 'get-content': 'type',
+      cp: 'copy', 'copy-item': 'copy', rm: 'del', erase: 'del', 'remove-item': 'del', clear: 'cls', 'clear-host': 'cls', 'write-host': 'echo', 'write-output': 'echo',
+      ps: 'tasklist', 'get-process': 'tasklist', 'stop-process': 'taskkill', 'get-date': 'date', 'test-connection': 'ping', 'get-help': 'help', 'get-command': 'help',
+      'stop-computer': 'shutdown', 'restart-computer': 'shutdown', 'new-item': 'mkdir' };
+
+    // ---- AI explain mode ----
+    function rows(title, list) {
+      if (!list.length) return; add('h', title);
+      list.forEach(o => { const i = o.indexOf(' ~ '), row = add('opt', ''), c = document.createElement('code'), s = document.createElement('span');
+        row.textContent = ''; c.textContent = i < 0 ? o : o.slice(0, i); s.textContent = i < 0 ? '' : o.slice(i + 3); row.append(c, s); });
+    }
+    function explain(r) {
+      add('ln nm', r[0]); add('ar', r[1]); add('h', 'ماذا يفعل؟'); add('ar', r[2]); add('h', 'الصيغة'); add('ln syn', r[3]);
+      rows('الخيارات', r[4]); rows('أمثلة', r[5]); if (r[6]) add('wn', '⚠ ' + r[6]);
+    }
+
+    // ---- fake outputs ----
+    const IP = 'Windows IP Configuration\n\nWireless LAN adapter Wi-Fi:\n\n   Connection-specific DNS Suffix  . :\n   IPv4 Address. . . . . . . . . . . : 192.168.1.23\n   Subnet Mask . . . . . . . . . . . : 255.255.255.0\n   Default Gateway . . . . . . . . . : 192.168.1.1';
+    const BCD = 'Windows Boot Manager\n--------------------\nidentifier              {bootmgr}\ndevice                  partition=\\Device\\HarddiskVolume1\ndescription             Windows Boot Manager\ndisplayorder            {current}\ntimeout                 10\n\nWindows Boot Loader\n-------------------\nidentifier              {current}\ndevice                  partition=C:\nosdevice                partition=C:\npath                    \\Windows\\system32\\winload.efi\ndescription             Windows 11';
+    const OK = 'The operation completed successfully.';
+    const ST = {
+      ipconfig: (a, l) => l.includes('flushdns') ? 'Windows IP Configuration\n\nSuccessfully flushed the DNS Resolver Cache.' : /release|renew/.test(l) ? OK : IP,
+      netstat: () => 'Active Connections\n\n  Proto  Local Address          Foreign Address        State           PID\n  TCP    192.168.1.23:50321     142.250.185.78:443     ESTABLISHED     4412\n  TCP    192.168.1.23:50344     20.190.159.2:443       ESTABLISHED     1288\n  TCP    0.0.0.0:135            0.0.0.0:0              LISTENING       1020',
+      tasklist: () => 'Image Name                     PID Session Name        Mem Usage\n========================= ======== ================ ============\nSystem Idle Process              0 Services                 8 K\nsvchost.exe                   1020 Services            14,220 K\nexplorer.exe                  4120 Console             98,304 K\nchrome.exe                    6288 Console            212,480 K\nnotepad.exe                   7340 Console             12,016 K',
+      systeminfo: () => 'Host Name:                 LAB-PC\nOS Name:                   Microsoft Windows 11 Home\nOS Version:                10.0.26100 Build 26100\nSystem Type:               x64-based PC\nTotal Physical Memory:     8,044 MB\nSystem Boot Time:          ' + stamp(),
+      nslookup: a => 'Server:  dns.google\nAddress:  8.8.8.8\n\nName:    ' + (a[0] || 'google.com') + '\nAddress:  142.250.185.78',
+      gpupdate: () => 'Updating policy...\n\nComputer Policy update has completed successfully.\nUser Policy update has completed successfully.',
+      bcdedit: (a, l) => !l || l.includes('/enum') ? BCD : OK,
+      bcdboot: () => 'Boot files successfully created.',
+      bootrec: (a, l) => l.includes('rebuildbcd') ? 'Scanning all disks for Windows installations.\nSuccessfully scanned Windows installations.\nTotal identified Windows installations: 1\n[1]  C:\\Windows' : OK,
+      sfc: (a, l) => l.includes('scannow') ? 'Beginning system scan.  This process will take some time.\n\nBeginning verification phase of system scan.\nVerification 33% complete.\nVerification 71% complete.\nVerification 100% complete.\n\nWindows Resource Protection did not find any integrity violations.' : 'USAGE: SFC [/SCANNOW] [/VERIFYONLY]',
+      dism: (a, l) => l.includes('restorehealth') ? 'Deployment Image Servicing and Management tool\nVersion: 10.0.26100.1\n\nImage Version: 10.0.26100.1\n\n[=====                      20.0%                           ]\n[===============            62.3%                           ]\n[==========================100.0%==========================]\nThe restore operation completed successfully.\n' + OK
+        : /checkhealth|scanhealth/.test(l) ? 'No component store corruption detected.\n' + OK
+        : l.includes('get-wiminfo') ? 'Details for image : D:\\sources\\install.wim\n\nIndex : 1\nName : Windows 11 Home\n\nIndex : 2\nName : Windows 11 Pro\n\n' + OK
+        : 'Deployment Image Servicing and Management tool\nVersion: 10.0.26100.1\n\nDISM.exe [dism_options] {Imaging_command} [<Imaging_arguments>]',
+      chkdsk: () => 'The type of the file system is NTFS.\n\nStage 1: Examining basic file system structure ...\nStage 2: Examining file name linkage ...\nStage 3: Examining security descriptors ...\n\nWindows has scanned the file system and found no problems.\nNo further action is required.',
+      tracert: a => 'Tracing route to ' + (a[0] || 'google.com') + ' over a maximum of 30 hops:\n\n  1     2 ms     1 ms     1 ms  192.168.1.1\n  2    11 ms    10 ms    12 ms  10.20.0.1\n  3    24 ms    23 ms    25 ms  72.14.215.85\n  4    28 ms    27 ms    28 ms  142.250.185.78\n\nTrace complete.',
+      icacls: (a, l) => /\/grant|\/deny|\/inheritance/.test(l) ? 'processed file: ' + (a[0] || '') + '\nSuccessfully processed 1 files; Failed processing 0 files' : (a[0] || 'C:\\lab') + ' NT AUTHORITY\\SYSTEM:(OI)(CI)(F)\n         BUILTIN\\Administrators:(OI)(CI)(F)\n         LAB-PC\\User:(OI)(CI)(M)\n\nSuccessfully processed 1 files; Failed processing 0 files',
+      takeown: a => 'SUCCESS: The file (or folder): "' + (a.find(x => x[0] !== '/') || '') + '" now owned by user "LAB-PC\\User".',
+      reg: (a, l) => /^query/.test(l) ? 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\n    ProductName    REG_SZ    Windows 11 Home\n    CurrentBuild    REG_SZ    26100' : OK,
+      taskkill: a => { const i = a.findIndex(x => x.toLowerCase() === '/im'); return i < 0 ? 'ERROR: Invalid syntax. Use /IM name or /PID id.' : 'SUCCESS: The process "' + a[i + 1] + '" has been terminated.'; },
+      shutdown: (a, l) => '(محاكاة) ' + (l.includes('/a') ? 'تم إلغاء الإغلاق المجدول.' : 'كان الجهاز سيُغلق أو يُعاد تشغيله الآن، لكن لم يحدث أي شيء في جهازك.'),
+      whoami: (a, l) => l.includes('/groups') ? 'GROUP INFORMATION\n-----------------\nEveryone                  Well-known group\nBUILTIN\\Users             Alias\nBUILTIN\\Administrators    Alias' : 'user-pc\\user',
+      hostname: () => 'LAB-PC', ver: () => '\nMicrosoft Windows [Version 10.0.26100.1]', date: () => new Date().toString()
+    };
+    const DL = { sfc: 700, dism: 600, chkdsk: 600, tracert: 450 };
+
+    async function ping(a) {
+      const h = a.find(x => x[0] !== '-' && !/^\d+$/.test(x)) || 'google.com', t = [];
+      await say('Pinging ' + h + ' [142.250.185.78] with 32 bytes of data:');
+      for (let i = 0; i < 4; i++) { await sleep(450); const ms = 18 + Math.floor(Math.random() * 25); t.push(ms); ln('Reply from 142.250.185.78: bytes=32 time=' + ms + 'ms TTL=117'); }
+      await sleep(300);
+      await say('\nPing statistics for 142.250.185.78:\n    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),\nApproximate round trip times in milli-seconds:\n    Minimum = ' + Math.min(...t) + 'ms, Maximum = ' + Math.max(...t) + 'ms');
+    }
+
+    function net(a, l) {
+      const sub = (a[0] || '').toLowerCase(), name = a[1];
+      if (sub === 'user') {
+        if (!name) return 'User accounts for \\\\LAB-PC\n\n-------------------------------------------------------------------------------\n' + users.join('    ') + '\n' + 'The command completed successfully.';
+        const i = users.findIndex(u => u.toLowerCase() === name.toLowerCase());
+        if (l.includes('/add')) { if (i >= 0) return 'The account already exists.'; users.push(name); return 'The command completed successfully.'; }
+        if (l.includes('/delete')) { if (i < 0) return 'The user name could not be found.'; users.splice(i, 1); return 'The command completed successfully.'; }
+        if (i < 0) return 'The user name could not be found.';
+        return a.length > 2 ? 'The command completed successfully.' : 'User name                    ' + users[i] + '\nAccount active               Yes\nPassword required            Yes\nLocal Group Memberships      *Users\nThe command completed successfully.';
+      }
+      if (sub === 'localgroup') return a.length < 2 ? 'Aliases for \\\\LAB-PC\n\n-------------------------------------------------------------------------------\n*Administrators\n*Guests\n*Users\nThe command completed successfully.' : 'The command completed successfully.';
+      return 'The syntax of this command is:\n\nNET USER | NET LOCALGROUP | NET START | NET STOP';
+    }
+
+    async function dpRun(raw) {
+      const l = raw.trim().toLowerCase(); if (!l) return;
+      const need = f => sel === null ? ln('There is no disk selected. Please select a disk and try again.', 'err') : f();
+      if (l === 'list disk') await say('  Disk ###  Status         Size     Free     Dyn  Gpt\n  --------  -------------  -------  -------  ---  ---\n  Disk 0    Online          238 GB  1024 KB        *\n  Disk 1    Online           29 GB    29 GB');
+      else if (l.startsWith('select disk')) { sel = +l.split(' ')[2]; if (sel > 1 || isNaN(sel)) { sel = null; ln('The disk you specified is not valid.', 'err'); } else ln('Disk ' + sel + ' is now the selected disk.'); }
+      else if (l === 'list volume') await say('  Volume ###  Ltr  Label        Fs     Type        Size     Status\n  ----------  ---  -----------  -----  ----------  -------  ---------\n  Volume 0     C   Windows      NTFS   Partition    237 GB  Healthy\n  Volume 1     S   SYSTEM       FAT32  Partition    100 MB  Healthy');
+      else if (l === 'detail disk') need(() => say('Disk ' + sel + (sel ? ': USB DISK 3.0\nType   : USB' : ': NVMe SSD\nType   : NVMe')));
+      else if (l === 'clean') need(() => ln(sel === 0 ? 'DiskPart has encountered an error: Access is denied (system disk).' : 'DiskPart succeeded in cleaning the disk.', sel === 0 ? 'err' : ''));
+      else if (/^convert (gpt|mbr)/.test(l)) need(() => ln('DiskPart successfully converted the selected disk to ' + l.slice(8).toUpperCase() + ' format.'));
+      else if (l.startsWith('create partition')) need(() => ln('DiskPart succeeded in creating the specified partition.'));
+      else if (l.startsWith('format')) await need(async () => { for (const p of [0, 40, 100]) { ln('  ' + p + ' percent completed'); await sleep(500); } ln('DiskPart successfully formatted the volume.'); });
+      else if (l.startsWith('assign')) ln('DiskPart successfully assigned the drive letter or mount point.');
+      else if (l === 'active') ln('DiskPart marked the current partition as active.');
+      else if (l === 'exit') { dp = null; sel = null; ln('Leaving DiskPart...'); }
+      else ln('DiskPart did not recognize the command. Try: list disk, select disk 1, clean, exit', 'err');
+    }
+
+    async function exec(raw) {
+      if (shell === 'cmd') raw = raw.replace(/^(\s*cd)(\.\.|\\)/i, '$1 $2');
+      const [w, ...a] = raw.trim().split(/\s+/), a1 = a.join(' '), l = a1.toLowerCase(); let c = w.toLowerCase();
+      if (shell === 'ps' && /^cd(\.\.|\\)/i.test(w)) { nr(w); ln('تلميح: في PowerShell اكتب cd .. بمسافة بين cd والنقطتين.', 'dim'); return; }
+      if (ALIAS[c]) { if (shell === 'ps') c = ALIAS[c]; else return nr(w); }
+      if (c === 'exit') { show(false); return; }
+      if (ai) { const q = (c + ' ' + l).trim(), k = KEYS.find(x => q === x || q.startsWith(x + ' ')); k ? explain(MAP.get(k)) : ln(c === 'net' ? 'جرّب: net user أو net localgroup' : 'لا أملك شرحًا لهذا الأمر بعد. اكتب help لعرض الأوامر المشروحة.', 'dim'); return; }
+      switch (c) {
+        case 'cls': out.textContent = ''; return;
+        case 'help': await say('الأوامر المتاحة:\n' + DB.map(r => r[0]).concat(['type', 'echo', 'date', 'hostname', 'ver', 'exit']).join('  ') + (shell === 'ps' ? '\n\nPowerShell: ls, gci, Get-Process, Get-Date, Get-Content, Test-Connection, cat, pwd, clear...' : '')); return;
+        case 'cd': {
+          if (!a1) { ln(pstr(cwd)); return; }
+          const p = resolve(a1.replace(/^\/d\s+/i, '')), n = get(p);
+          if (n && typeof n === 'object') cwd = p; else bad('The system cannot find the path specified.', "cd : Cannot find path '" + pstr(p) + "' because it does not exist."); return; }
+        case 'dir': {
+          const t = a.find(x => x[0] !== '/' && x[0] !== '-'), p = t ? resolve(t) : cwd, n = get(p);
+          if (!n || typeof n !== 'object') { bad('File Not Found', "Get-ChildItem : Cannot find path '" + pstr(p) + "' because it does not exist."); return; }
+          const e = Object.keys(n), D = stamp();
+          if (shell === 'ps') { await say('\n    Directory: ' + pstr(p) + '\n\nMode                 LastWriteTime         Length Name\n----                 -------------         ------ ----\n' + e.map(k => typeof n[k] === 'object' ? 'd-----        ' + D + '            ' + k : '-a----        ' + D + String(n[k].length).padStart(11) + ' ' + k).join('\n')); return; }
+          await say(' Volume in drive C has no label.\n Directory of ' + pstr(p) + '\n\n' + e.map(k => D + (typeof n[k] === 'object' ? '    <DIR>          ' : String(n[k].length).padStart(15) + ' ') + k).join('\n') + '\n               ' + e.length + ' item(s)'); return; }
+        case 'mkdir': { if (!a1) { bad('The syntax of the command is incorrect.', 'mkdir : missing name'); return; } const p = resolve(a1.replace(/-itemtype\s+\w+|-name/gi, '').trim()); if (get(p)) bad('A subdirectory or file ' + a1 + ' already exists.', 'mkdir : Item already exists.'); else mk(p); return; }
+        case 'type': { const n = get(resolve(a1)); typeof n === 'string' ? ln(n) : bad('The system cannot find the file specified.', "Get-Content : Cannot find path '" + a1 + "' because it does not exist."); return; }
+        case 'echo': ln(a1.replace(/^"|"$/g, '')); return;
+        case 'copy': { const s = get(resolve(a[0] || '')); if (typeof s !== 'string') { bad('The system cannot find the file specified.', 'Copy-Item : Cannot find path.'); return; } let dp2 = resolve(a[1] || '.'); const d = get(dp2); if (d && typeof d === 'object') d[a[0].split(/[\\/]/).pop()] = s; else { const par = get(dp2.slice(0, -1)); if (par) par[dp2.at(-1)] = s; } if (shell === 'cmd') ln('        1 file(s) copied.'); return; }
+        case 'del': { const p = resolve(a.find(x => x[0] !== '/' && x[0] !== '-') || ''), par = get(p.slice(0, -1)), k = par && find(par, p.at(-1)); if (k !== undefined && typeof par[k] === 'string') delete par[k]; else bad('Could not find ' + pstr(p), 'Remove-Item : Cannot find path.'); return; }
+        case 'net': await say(net(a, l)); return;
+        case 'ping': await ping(a); return;
+        case 'diskpart': dp = {}; sel = null; await say('\nMicrosoft DiskPart version 10.0.26100.1\n\nCopyright (C) Microsoft Corporation.\nOn computer: LAB-PC\n'); return;
+        default: if (ST[c]) await say(ST[c](a, l), DL[c] || 0); else nr(w);
+      }
+    }
+
+    async function go(v) {
+      if (busy) return; busy = true;
+      ln(promptText() + v);
+      if (v.trim()) { hist.push(v); hi = hist.length; }
+      try { dp ? await dpRun(v) : v.trim() && await exec(v); } finally { busy = false; upd(); out.scrollTop = out.scrollHeight; }
+    }
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { const v = inp.value; inp.value = ''; go(v); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); if (hi > 0) inp.value = hist[--hi]; }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); inp.value = hi < hist.length - 1 ? hist[++hi] : (hi = hist.length, ''); }
+      else if (e.key === 'Tab') { e.preventDefault(); const v = inp.value.toLowerCase(), m = KEYS.slice().reverse().find(x => v && x.startsWith(v)); if (m) inp.value = m; }
+    });
+
+    function show(on, sh) {
+      $('lab').hidden = !on; if (!on) return;
+      shell = sh; dp = null; sel = null; cwd = ['C:', 'Users', 'User']; term.className = 'term ' + sh; $('shsel').value = sh; out.textContent = '';
+      ln(sh === 'ps' ? 'Windows PowerShell\nCopyright (C) Microsoft Corporation. All rights reserved.\n' : 'Microsoft Windows [Version 10.0.26100.1]\n(c) Microsoft Corporation. All rights reserved.\n');
+      add('ar', 'محاكاة للتعلم فقط، لا يتغير شيء في جهازك. اكتب help لعرض الأوامر، وفعّل أيقونة AI لشرح الأوامر.'); upd(); inp.focus();
+    }
+    document.querySelectorAll('[data-sh]').forEach(b => b.onclick = () => show(true, b.dataset.sh));
+    $('shsel').onchange = e => show(true, e.target.value);
+    $('ai').onclick = () => {
+      ai = !ai; $('ai').setAttribute('aria-pressed', ai); $('badge').hidden = !ai;
+      inp.placeholder = ai ? 'AI: اكتب اسم أي أمر لشرحه، مثل diskpart' : '';
+      if (!$('lab').hidden) { add('ar', ai ? 'وضع AI مفعّل: اكتب اسم أي أمر وسأشرحه بالتفصيل بدل تنفيذه.' : 'وضع AI متوقف: الأوامر تُنفَّذ (وهميًا) من جديد.'); inp.focus(); }
+    };
+    ['dir', 'cd ..', 'mkdir lab', 'net user', 'ipconfig', 'ping 8.8.8.8', 'tasklist', 'sfc /scannow', 'DISM /Online /Cleanup-Image /RestoreHealth', 'diskpart', 'bcdedit /enum', 'help'].forEach(n => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = n; b.onclick = () => { go(n); inp.focus(); }; $('chips').appendChild(b);
+    });
+    const clk = $('clk'); clk.style.whiteSpace = 'pre-line';
+    (function tick() { const d = new Date(); clk.dateTime = d.toISOString(); clk.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '\n' + d.toLocaleDateString(); setTimeout(tick, 15000); })();
+  </script>
+</body>
+</html>
